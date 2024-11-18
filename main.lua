@@ -10,14 +10,16 @@ function love.load()
 	-- sti("path to map.lua") - (loads a map)
 	ptm = "maps/test-map5.lua"
 	game_map = sti(ptm)
+	local map_width = game_map.width * game_map.tilewidth
+	local map_height = game_map.height * game_map.tileheight
 	-- camera() - (makes a new camera)
 	cam = camera()
 	fullscreen = true
 	love.mouse.setVisible(false)
 	love.graphics.setDefaultFilter("nearest" , "nearest")
 	player = {}
-	player.x = love.graphics.getWidth() / 2
-	player.y = love.graphics.getHeight() / 2
+	player.x = 911
+	player.y = 381
 	-- the player speed (the impulse of the player on the "x , y" axises)
 	player.speed = 400
 	player.spritesheet = love.graphics.newImage("images/player-sheet.png")
@@ -232,11 +234,11 @@ function love.update(dt)
 	decr = false
 	incr = false
 
-	if player.x >= map_width then
+	--[[if player.x >= map_width then
 		-- ptm = path to map
 		ptm = "maps/map2.lua"
 		rect.w = rect.w + 5
-	end
+	end]]
 
 	if love.keyboard.isDown("lalt" , "ralt") and love.keyboard.isDown("d") then
 		love.system.openURL("https://discord.com/invite/JSd6T2MTBm")
@@ -275,7 +277,7 @@ function love.draw()
 	cam:attach()
 		game_map:drawLayer(game_map.layers["ground"])
 		game_map:drawLayer(game_map.layers["tree"])
-		love.graphics.setColor(1 , 1 , 1)
+		love.graphics.setColor(1 , 1 , 1 , 0.8)
 		for i = 1 , #texts.first do
 			love.graphics.print(texts.first[i] , 80 , 100 + 24 * i)
 		end
@@ -286,12 +288,14 @@ function love.draw()
 		love.graphics.print("Made by : " .. game_maker , 805 , 150)
 		love.graphics.print(copy_rights , 860 , 190)
 		-- love.graphics.draw(drawable, x, y, r, sx, sy, ox, oy, kx, ky)
+		love.graphics.setColor(1 , 1 , 1)
 		love.graphics.draw(palestine , 880 , 235 , nil , 3.4 , 1.7)
+		love.graphics.setColor(1 , 1 , 1, 0.8)
 		love.graphics.print(head.first , 200 , 43)
 		love.graphics.print(head.middle , 897 , 43)
 		love.graphics.print(head.last , 1542 , 43)
-		love.graphics.rectangle(rect.m, rect.x, rect.y, rect.w, rect.h)
 		love.graphics.setColor(1 , 1 , 1)
+		--[[love.graphics.rectangle(rect.m, rect.x, rect.y, rect.w, rect.h)]]
 		player.anim:draw(player.spritesheet , player.x , player.y , nil , player.size , nil , 6 , 9)
 	--[[
 	
@@ -307,11 +311,40 @@ function love.draw()
 	cam:detach()
 	-- love.graphics.rectangle(mode, x, y, width, height, rx, ry, segments)
 	love.graphics.draw(cursor , mouse_x , mouse_y , nil , mouse_mode.mods)
+
+	if debugging then
+        -- Get map dimensions
+        local map_width = game_map.width * game_map.tilewidth
+        local map_height = game_map.height * game_map.tileheight
+
+        -- Draw grid lines
+        love.graphics.setColor(1, 1, 1, 0.6)  -- Set translucent white color
+        for x = 0, map_width, 32 do
+            love.graphics.line(x, 0, x, map_height)  -- Vertical grid lines
+        end
+        for y = 0, map_height, 32 do
+            love.graphics.line(0, y, map_width, y)  -- Horizontal grid lines
+        end
+
+        -- Draw debug information
+        love.graphics.setColor(1, 1, 1)  -- Reset color to full white
+        love.graphics.print("Debug Mode", screen_width / 2 - 70, 30)
+        love.graphics.print("Player X: " .. math.floor(player.x) .. ", Y: " .. math.floor(player.y), 10, 10)
+        love.graphics.print("Mouse X: " .. mouse_x .. ", Mouse Y: " .. mouse_y, 10, 40)
+    end
 end
 
  	-- the below codes arent neccecary
 
+ debuging = false
+
 function love.keypressed(key)
+
+	if key == "f5" then
+        debugging = not debugging  -- Toggle debug mode
+    end
+
+
 	if key == "escape" then
 		love.event.quit()
 	end
