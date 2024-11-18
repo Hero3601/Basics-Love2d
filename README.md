@@ -21,6 +21,13 @@
 **Alt + D - My Discord Server**
 
 
+### **Secret Control [*FOR DEVELOPERS*] :**
+
+
+**F5 - Debug Mode**
+
+
+
 ## Mouse Appearances :computer_mouse: :
 
 **Alt + T + B - Black Transparent Cursor :black_circle: :window:** 
