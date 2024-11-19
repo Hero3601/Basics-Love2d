@@ -331,6 +331,7 @@ function love.draw()
         love.graphics.print("Debug Mode", screen_width / 2 - 70, 30)
         love.graphics.print("Player X: " .. math.floor(player.x) .. ", Y: " .. math.floor(player.y), 10, 10)
         love.graphics.print("Mouse X: " .. mouse_x .. ", Mouse Y: " .. mouse_y, 10, 40)
+        love.graphics.print("FPS: " .. tostring(love.timer.getFPS()), 10, 70)
     end
 end
 
