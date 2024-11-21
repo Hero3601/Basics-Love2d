@@ -1,4 +1,6 @@
 function love.load()
+	--[[vudu = require "libraries/vudu"
+	vudu:initialize()]]
 	wf = require "libraries/windfield/windfield"
 	-- newWorld args : (gx (gravity on the x axis) , gy (gravity on y axis))
 	-- our game is top-down game so there will be no gravity in our game on the both axises 
@@ -8,7 +10,7 @@ function love.load()
 	camera = require "libraries/hump/camera"
 	-- require "conf"
 	-- sti("path to map.lua") - (loads a map)
-	ptm = "maps/test-map5.lua"
+	ptm = "maps/map1.lua"
 	game_map = sti(ptm)
 	local map_width = game_map.width * game_map.tilewidth
 	local map_height = game_map.height * game_map.tileheight
@@ -87,6 +89,13 @@ function love.load()
 	mouse_mode.mods = mouse_mode.one.num
 
 	screen_width , screen_height = love.graphics.getDimensions()
+
+
+
+
+	map1 = true
+	map2 = false
+	map3 = false
 	--[[
 	background = love.graphics.newImage("images/background1.png")
 	background_width = background:getWidth()
@@ -155,6 +164,23 @@ function love.load()
 end
 
 function love.update(dt)
+
+	local map_width = game_map.width * game_map.tilewidth
+	local map_height = game_map.height * game_map.tileheight
+
+	--[[if player.x >= 1915 and map1 == true then
+		ptm = "maps/map2.lua"
+		game_map = sti(ptm)
+		map1 = false
+		map2 = true
+		map3 = false
+	elseif map2 == true and player.x >= 1915 then
+		ptm = "maps/map1.lua"
+		game_map = sti(ptm)
+		map1 = true
+		map2 = false
+		map3 = false
+	end]]
 
 	local ismoving = false
 
