@@ -6,7 +6,7 @@
 
 ## Controls :video_game: :
 
-**WASD / Arrows - Movement :walking_man: **
+**WASD / Arrows - Movement :walking_man:**
 
 **C / Right-Shift - Sprint :runner:** 
 
