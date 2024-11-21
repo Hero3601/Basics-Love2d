@@ -32,7 +32,7 @@
 
 **Alt + T + B - Black Transparent Cursor :black_circle: :window:** 
 
-**Alt + T + W - White Transparent Cursor :white_circle: :window: **
+**Alt + T + W - White Transparent Cursor :white_circle: :window:**
 
 **Alt + C + W - White Cursor (The Default Cursor) :white_circle:** 
 
