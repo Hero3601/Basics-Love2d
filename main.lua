@@ -1,19 +1,46 @@
+-- for map
+local maps = {}
+local current_map_index = 1
+-- for map bools
+local map_main = true
+local map_right1 = false
+local map_left1 = false
+-- for cps
+local clickcount = 0
+local cps = 0
+local timer = 0
+local interval = 0.5
+
 function love.load()
 	--[[vudu = require "libraries/vudu"
 	vudu:initialize()]]
 	wf = require "libraries/windfield/windfield"
 	-- newWorld args : (gx (gravity on the x axis) , gy (gravity on y axis))
 	-- our game is top-down game so there will be no gravity in our game on the both axises 
-	world = wf.newWorld(0 , 0)
+	world = wf.newWorld(0 , 0 , true)
+	world:setQueryDebugDrawing(true)
 	animte = require "libraries/anim8/anim8"
 	sti = require "libraries/Simple-Tiled-Implementation/sti"
 	camera = require "libraries/hump/camera"
 	-- require "conf"
 	-- sti("path to map.lua") - (loads a map)
-	ptm = "maps/map1.lua"
-	game_map = sti(ptm)
-	local map_width = game_map.width * game_map.tilewidth
-	local map_height = game_map.height * game_map.tileheight
+	maps[1] = sti("maps/map1.lua")
+	maps[2] = sti("maps/test-map1.lua")
+	maps[3] = sti("maps/test-map3.lua")
+
+	game_map = maps[current_map_index]
+
+	--[[
+	-- function for loading maps
+	function map_sti(fn)
+		if type(fn) ~= "string" then
+			return
+		else
+			sti(fn)
+		end
+	end]]
+
+
 	-- camera() - (makes a new camera)
 	cam = camera()
 	fullscreen = true
@@ -89,13 +116,6 @@ function love.load()
 	mouse_mode.mods = mouse_mode.one.num
 
 	screen_width , screen_height = love.graphics.getDimensions()
-
-
-
-
-	map1 = true
-	map2 = false
-	map3 = false
 	--[[
 	background = love.graphics.newImage("images/background1.png")
 	background_width = background:getWidth()
@@ -165,8 +185,13 @@ end
 
 function love.update(dt)
 
-	local map_width = game_map.width * game_map.tilewidth
-	local map_height = game_map.height * game_map.tileheight
+	timer = timer + dt
+
+	if timer >= interval then
+		cps = math.floor(clickcount / interval)
+		clickcount = 0
+		timer = timer - interval
+	end
 
 	--[[if player.x >= 1915 and map1 == true then
 		ptm = "maps/map2.lua"
@@ -234,6 +259,52 @@ function love.update(dt)
 
 	local map_width = game_map.width * game_map.tilewidth
 	local map_height = game_map.height * game_map.tileheight
+    if player.x > map_width then
+        -- Move to the next map
+        map_main = false
+        map_right1 = true
+        current_map_index = 2
+        game_map = maps[current_map_index]
+        --[[local map_width = game_map.width * game_map.tilewidth 
+        local map_height = game_map.height * game_map.tileheight]]
+
+        -- Cycle to the next map (1 -> 2 -> 3 -> 1)
+        player.x = 0
+
+        for i , wall in ipairs(walls) do
+        	wall:destroy()
+        end
+        walls = {}
+        if game_map.layers["colliders"] then
+			for i , obj in pairs(game_map.layers["colliders"].objects) do
+				local wall = world:newRectangleCollider(obj.x , obj.y , obj.width , obj.height)
+				wall:setType("static")
+				table.insert(walls , wall)
+			end
+		end
+        -- Reset player's x position to the start of the new map
+    elseif player.x < 0 then
+
+    	map_main = true
+    	map_right1 = false
+
+        -- Move to the previous map (if moving backward)current_map_index
+        current_map_index = 1  -- Cycle back (1 -> 3 -> 2 -> 1)
+        -- local previous_map_width = game_map.width * game_map.tilewidth
+        player.x = previous_map_width  -- Reset player to the end of the previous map
+    end
+
+    -- Update the current map
+    game_map:update(dt)
+
+    --[[function load_map(map_file)
+    	local game_map = sti(map_file)
+
+    	local map_width = game_map.width * game_map.tilewidth
+    	local map_height = game_map.height * game_map.tileheight
+    	print("map loaded" .. "width : " .. map_width)
+    	print("height : " .. map_height)
+	end]]
 
 	if cam.x > (map_width - screen_width / 2) then
 		cam.x = (map_width - screen_width / 2)
@@ -251,14 +322,14 @@ function love.update(dt)
 		end
 	end]]
 
-	rect = {}
+	--[[rect = {}
 	rect.m = "fill"
 	rect.w = 0
 	rect.h = map_height
 	rect.x = 0
 	rect.y = 0
 	decr = false
-	incr = false
+	incr = false]]
 
 	--[[if player.x >= map_width then
 		-- ptm = path to map
@@ -353,11 +424,18 @@ function love.draw()
         end
 
         -- Draw debug information
-        love.graphics.setColor(1, 1, 1)  -- Reset color to full white
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.setColor(255/255, 188/255, 3/255)  -- Reset color to full white
         love.graphics.print("Debug Mode", screen_width / 2 - 70, 30)
         love.graphics.print("Player X: " .. math.floor(player.x) .. ", Y: " .. math.floor(player.y), 10, 10)
         love.graphics.print("Mouse X: " .. mouse_x .. ", Mouse Y: " .. mouse_y, 10, 40)
         love.graphics.print("FPS: " .. tostring(love.timer.getFPS()), 10, 70)
+        love.graphics.print("Current Map: " .. current_map_index, 230, 10)
+        love.graphics.print("Map Width : " .. map_width , 10 , 100)
+        love.graphics.print("Map Height : " .. map_height , 10 , 130)
+        love.graphics.print("Player velocity: " .. math.floor(player.collider:getLinearVelocity()) , 100  , 70)
+        love.graphics.print("CPS : " .. cps , 190 , 100)
+        love.graphics.setColor(1 , 1 , 1)
     end
 end
 
@@ -465,8 +543,8 @@ function love.keyreleased(key)
 
 end
 
---[[function love.mousepressed(x, y, button, istouch, presses)
+function love.mousepressed(x, y, button, istouch, presses)
 	if button == 1 then
-		print("You Pressed the mouse at : " .. mouse_x .. " , " .. mouse_y)
+		clickcount = clickcount + 1
 	end
-end]]
+end
