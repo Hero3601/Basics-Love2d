@@ -1,15 +1,13 @@
 -- for map
 local maps = {}
 local current_map_index = 1
--- for map bools
-local map_main = true
-local map_right1 = false
-local map_left1 = false
 -- for cps
 local clickcount = 0
 local cps = 0
 local timer = 0
 local interval = 0.5
+
+local div_clr = 255
 
 function love.load()
 	--[[vudu = require "libraries/vudu"
@@ -29,6 +27,7 @@ function love.load()
 	maps[3] = sti("maps/test-map3.lua")
 
 	game_map = maps[current_map_index]
+
 
 	--[[
 	-- function for loading maps
@@ -55,6 +54,8 @@ function love.load()
 	player.rotation = nil
 	player.row = 4
 	player.col = 4
+	player.width = player.spritesheet:getWidth() / player.row
+	player.height = player.spritesheet:getHeight() / player.col
 	player.collider = world:newBSGRectangleCollider(player.x , player.y , 50 , 90 , 14)
 	player.collider:setFixedRotation(true)
 	--[[
@@ -72,11 +73,28 @@ function love.load()
 
 	]]
 	player.size = 6
+
+	particle_image = love.graphics.newImage("images/particle.png")
+
+    particles = love.graphics.newParticleSystem(particle_image, 1000)
+    particles:setParticleLifetime(0.40, 0.85)  -- Particles live 0.5-1 seconds
+    particles:setEmissionRate(20)  -- Start with no emission
+    particles:setSizeVariation(1)
+    particles:setLinearAcceleration(-20, -10, 20, 50 ) -- Slight spread and gravity
+    particles:setColors(1, 1, 1, 0.5, 1 , 1 , 1 , 0)  -- White to transparent
+    particles:setSizes(1 , 0.5 , 0.25)  -- Particles shrink over time
+    particles:setSpread(math.pi * 4)  -- Spread angle
+    particles:setSpeed(50, 100)  -- Particle speed
+    particles:setLinearDamping(2, 4)  -- Slow down over time
+    particles:setSpin(0, 2)  -- Slight rotation
+
+    emitterX, emitterY = player.x, player.y + player.height + 20
+
 	--[[Grid Args :
 			( Each frame width , Each frame height , the width of the player sprite sheet (whole sprite sheet) ,
 			 the height of the player sprite sheet (whole sprite sheet) )
 	]]
-	player.grid = animte.newGrid(player.spritesheet:getWidth() / player.row , player.spritesheet:getHeight() / player.col , player.spritesheet:getWidth() , player.spritesheet:getHeight())
+	player.grid = animte.newGrid(player.width , player.height , player.spritesheet:getWidth() , player.spritesheet:getHeight())
 	player.zoom = 1
 
 	player.animation = {}
@@ -185,6 +203,9 @@ end
 
 function love.update(dt)
 
+	emitterX = player.x
+	emitterY = player.y + player.height + 20
+
 	timer = timer + dt
 
 	if timer >= interval then
@@ -245,58 +266,187 @@ function love.update(dt)
 		player.anim:gotoFrame(2)
 	end
 
+	if ismoving then
+		particles:setEmissionRate(30)  -- Emit 30 particles per second
+        particles:setPosition(emitterX, emitterY)
+    else
+        particles:setEmissionRate(0)  -- Stop emitting when not moving
+	end
+
+	particles:update(dt)
+
 	world:update(dt)
 	player.x = player.collider:getX()
 	player.y = player.collider:getY()
 
-	if cam.x < screen_width / 2 then
-		cam.x = screen_width / 2
-	end
 
-	if cam.y < screen_height / 2 then
-		cam.y = screen_height / 2
-	end
+	 -- Map transition logic
+    -- Map transition logic
+local map_width = game_map.width * game_map.tilewidth
+local map_height = game_map.height * game_map.tileheight
 
-	local map_width = game_map.width * game_map.tilewidth
-	local map_height = game_map.height * game_map.tileheight
-    if player.x > map_width then
-        -- Move to the next map
-        map_main = false
-        map_right1 = true
-        current_map_index = 2
-        game_map = maps[current_map_index]
-        --[[local map_width = game_map.width * game_map.tilewidth 
-        local map_height = game_map.height * game_map.tileheight]]
+    if cam.x < screen_width / 2 then
+        cam.x = screen_width / 2
+    end
 
-        -- Cycle to the next map (1 -> 2 -> 3 -> 1)
-        player.x = 0
+    if cam.y < screen_height / 2 then
+        cam.y = screen_height / 2
+    end
 
-        for i , wall in ipairs(walls) do
-        	wall:destroy()
+    if cam.x > (map_width - screen_width / 2) then
+        cam.x = (map_width - screen_width / 2)
+    end
+
+    if cam.y > (map_height - screen_height / 2) then
+        cam.y = (map_height - screen_height / 2)
+    end
+
+if player.x > map_width then
+    -- Move to the next map (right)
+    current_map_index = current_map_index + 1
+    if current_map_index > #maps then
+        current_map_index = 1  -- Loop back to the first map
+    end
+    game_map = maps[current_map_index]
+
+    -- Reset player position to the left edge of the new map
+    player.x = 0
+    player.collider:setX(player.x)
+
+    -- Rebuild colliders for the new map
+    rebuildColliders()
+
+    -- Update camera bounds for the new map
+    updateCameraBounds()
+
+    removeText()
+
+    if current_map_index == 1 then
+    	restoreText()
+    end
+elseif player.x < 0 then
+    -- Move to the previous map (left)
+    current_map_index = current_map_index - 1
+    if current_map_index < 1 then
+        current_map_index = #maps  -- Loop back to the last map
+    end
+    game_map = maps[current_map_index]
+
+    -- Reset player position to the right edge of the new map
+    player.x = game_map.width * game_map.tilewidth
+    player.collider:setX(player.x)
+
+    -- Rebuild colliders for the new map
+    rebuildColliders()
+
+    -- Update camera bounds for the new map
+    updateCameraBounds()
+
+    removeText()
+
+
+    if current_map_index == 1 then
+    	restoreText()
+    end
+end
+
+function rebuildColliders()
+    -- Destroy existing colliders
+    for i, wall in ipairs(walls) do
+        wall:destroy()
+    end
+    walls = {}
+
+    -- Create new colliders for the current map
+    if game_map.layers["colliders"] then
+        for i, obj in pairs(game_map.layers["colliders"].objects) do
+            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+            wall:setType("static")
+            table.insert(walls, wall)
         end
-        walls = {}
-        if game_map.layers["colliders"] then
-			for i , obj in pairs(game_map.layers["colliders"].objects) do
-				local wall = world:newRectangleCollider(obj.x , obj.y , obj.width , obj.height)
-				wall:setType("static")
-				table.insert(walls , wall)
-			end
-		end
-        -- Reset player's x position to the start of the new map
-    elseif player.x < 0 then
+    end
+end
 
-    	map_main = true
-    	map_right1 = false
+function updateCameraBounds()
+    -- Recalculate the map's width and height
+    local map_width = game_map.width * game_map.tilewidth
+    local map_height = game_map.height * game_map.tileheight
 
-        -- Move to the previous map (if moving backward)current_map_index
-        current_map_index = 1  -- Cycle back (1 -> 3 -> 2 -> 1)
-        -- local previous_map_width = game_map.width * game_map.tilewidth
-        player.x = previous_map_width  -- Reset player to the end of the previous map
+    -- Update the camera's bounds to match the new map's dimensions
+    if cam.x < screen_width / 2 then
+        cam.x = screen_width / 2
+    end
+
+    if cam.y < screen_height / 2 then
+        cam.y = screen_height / 2
+    end
+
+    if cam.x > (map_width - screen_width / 2) then
+        cam.x = (map_width - screen_width / 2)
+    end
+
+    if cam.y > (map_height - screen_height / 2) then
+        cam.y = (map_height - screen_height / 2)
+    end
+end
+
+function removeText()
+    -- Clear the texts table
+    texts = {
+        first = {} ,  -- Reset the first set of texts
+        second = {}  -- Reset the second set of texts
+    }
+
+    head = {
+    	first = "" , 
+    	middle = "" ,
+    	last = ""
+    }
+
+    -- Clear other text-related variables
+    copy_rights = ""  -- Set to an empty string
+    game_maker = ""   -- Set to an empty string
+
+    -- Clear the palestine flag (set to nil or a blank image)
+    palestine = nil  -- Or use: palestine = love.graphics.newImage("images/blank.png") if you have a blank image
+end
+
+function restoreText()
+        -- Restore the texts table
+        texts = {
+            first = {
+                "Esc - Exit",
+                "WASD / Arrows - Player Movement",
+                "F11 - Fullscreen / Minimized-Screen",
+                "C / Right-Shift - Sprint",
+                "Z - Zoom",
+                "1/2/3/4 - Mouse Scale Controlling",
+                "Alt + D - My Discord Server"
+            },
+            second = {
+                "Alt + T + B - Black Transparent Cursor",
+                "Alt + T + W - White Transparent Cursor",
+                "Alt + C + W - White Cursor (The Default Cursor)",
+                "Alt + C + B - Black Cursor"
+            }
+        }
+
+        -- Restore the head table
+        head = {
+            first = "Controls:",
+            middle = "Credits:",
+            last = "Mouse Appearances:"
+        }
+
+        -- Restore other text-related variables
+        copy_rights = "© Power Crew"
+        game_maker = "Mohamed Eldeeb"
+
+        -- Restore the palestine flag
+        palestine = love.graphics.newImage("images/palestine.png")
     end
 
     -- Update the current map
-    game_map:update(dt)
-
     --[[function load_map(map_file)
     	local game_map = sti(map_file)
 
@@ -306,13 +456,13 @@ function love.update(dt)
     	print("height : " .. map_height)
 	end]]
 
-	if cam.x > (map_width - screen_width / 2) then
-		cam.x = (map_width - screen_width / 2)
-	end
+	-- if cam.x > (map_width - screen_width / 2) then
+	-- 	cam.x = (map_width - screen_width / 2)
+	-- end
 
-	if cam.y > (map_height - screen_height / 2) then
-		cam.y = (map_height - screen_height / 2)
-	end
+	-- if cam.y > (map_height - screen_height / 2) then
+	-- 	cam.y = (map_height - screen_height / 2)
+	-- end
 
 	--[[if player.x >= map_width then
 		game_map = sti("maps/map2.lua")
@@ -382,15 +532,28 @@ function love.draw()
 		for i = 1 , #texts.second do
 			love.graphics.print(texts.second[i] , 1400 , 130 + 26 * i)
 		end
-		love.graphics.print("Made by : " .. game_maker , 805 , 150)
-		love.graphics.print(copy_rights , 860 , 190)
+		if game_maker and game_maker ~= "" then
+			love.graphics.print("Made by : " .. game_maker , 805 , 150)			
+		end
+		if copy_rights and copy_rights ~= "" then
+			love.graphics.print(copy_rights , 860 , 190)
+		end
 		-- love.graphics.draw(drawable, x, y, r, sx, sy, ox, oy, kx, ky)
 		love.graphics.setColor(1 , 1 , 1)
-		love.graphics.draw(palestine , 880 , 235 , nil , 3.4 , 1.7)
+		if palestine then
+            love.graphics.draw(palestine, 880, 235, nil, 3.4, 1.7)
+        end
 		love.graphics.setColor(1 , 1 , 1, 0.8)
-		love.graphics.print(head.first , 200 , 43)
-		love.graphics.print(head.middle , 897 , 43)
-		love.graphics.print(head.last , 1542 , 43)
+		if head then
+			love.graphics.print(head.first , 200 , 43)
+			love.graphics.print(head.middle , 897 , 43)
+			love.graphics.print(head.last , 1542 , 43)
+		end
+
+		love.graphics.setBlendMode("add")  -- Additive blending for a glowing effect
+        love.graphics.draw(particles)
+        love.graphics.setBlendMode("alpha")  -- Reset blending mode
+
 		love.graphics.setColor(1 , 1 , 1)
 		--[[love.graphics.rectangle(rect.m, rect.x, rect.y, rect.w, rect.h)]]
 		player.anim:draw(player.spritesheet , player.x , player.y , nil , player.size , nil , 6 , 9)
@@ -410,6 +573,12 @@ function love.draw()
 	love.graphics.draw(cursor , mouse_x , mouse_y , nil , mouse_mode.mods)
 
 	if debugging then
+
+		cam:attach()
+
+		world:draw()
+
+		cam:detach()
         -- Get map dimensions
         local map_width = game_map.width * game_map.tilewidth
         local map_height = game_map.height * game_map.tileheight
@@ -425,7 +594,7 @@ function love.draw()
 
         -- Draw debug information
         love.graphics.setColor(1, 1, 1)
-        love.graphics.setColor(255/255, 188/255, 3/255)  -- Reset color to full white
+        love.graphics.setColor(69/div_clr, 255/div_clr, 208/div_clr)  -- Reset color to full white
         love.graphics.print("Debug Mode", screen_width / 2 - 70, 30)
         love.graphics.print("Player X: " .. math.floor(player.x) .. ", Y: " .. math.floor(player.y), 10, 10)
         love.graphics.print("Mouse X: " .. mouse_x .. ", Mouse Y: " .. mouse_y, 10, 40)
