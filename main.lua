@@ -56,7 +56,9 @@ function love.load()
 	player.col = 4
 	player.width = player.spritesheet:getWidth() / player.row
 	player.height = player.spritesheet:getHeight() / player.col
-	player.collider = world:newBSGRectangleCollider(player.x , player.y , 50 , 90 , 14)
+	player.size = 6
+	player.gap = 20
+	player.collider = world:newBSGRectangleCollider(player.x , player.y , (player.width * player.size - player.gap) , (player.height * player.size - player.gap) , 14)
 	player.collider:setFixedRotation(true)
 	--[[
 
@@ -72,7 +74,15 @@ function love.load()
 		   (6 times bigger than the usual)
 
 	]]
-	player.size = 6
+
+	sounds = {}
+	sounds.footStep = love.audio.newSource("audios/footstep-1.wav", "stream")
+	sounds.birdNoise = love.audio.newSource("audios/mus_birdnoise.ogg" , "stream")
+
+
+	sounds.birdNoise:setVolume(0.3)
+	sounds.birdNoise:setLooping(true)
+	sounds.birdNoise:play()
 
 	particle_image = love.graphics.newImage("images/particle.png")
 
@@ -267,6 +277,9 @@ function love.update(dt)
 	end
 
 	if ismoving then
+		sounds.footStep:setVolume(0.9)
+		sounds.footStep:play()
+
 		particles:setEmissionRate(30)  -- Emit 30 particles per second
         particles:setPosition(emitterX, emitterY)
     else
@@ -667,6 +680,7 @@ function love.keypressed(key)
 		player.animation.left = animte.newAnimation(player.grid("1-4" , 2) , 0.1)
 		player.animation.right = animte.newAnimation(player.grid("1-4" , 3) , 0.1)
 		player.animation.up = animte.newAnimation(player.grid("1-4" , 4) , 0.1)
+		sounds.footStep:setPitch(1.2)
 	end
 
 	if key == "z" then
@@ -701,6 +715,7 @@ function love.keyreleased(key)
 		player.animation.left = animte.newAnimation(player.grid("1-4" , 2) , 0.2)
 		player.animation.right = animte.newAnimation(player.grid("1-4" , 3) , 0.2)
 		player.animation.up = animte.newAnimation(player.grid("1-4" , 4) , 0.2)
+		sounds.footStep:setPitch(1)
 	end
 
 	if key == "z" then
