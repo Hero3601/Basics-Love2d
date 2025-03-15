@@ -678,17 +678,16 @@ function love.draw()
 
     			love.graphics.setColor(1 , 1 , 1 , char.opacity * menu.opacity)
 
-    			love.graphics.draw(char.sprite , charX + (char.sprite:getWidth() / 2) , charY + (char.sprite:getHeight()) , nil , char.scale , char.scale)
+    			love.graphics.draw(char.sprite , charX + (char.sprite:getWidth() / 2) , charY + (char.sprite:getHeight() / 2) , nil , char.scale , char.scale , char.sprite:getWidth() / 2 , char.sprite:getHeight() / 2)
 
     			local boxW = 100
     			local boxH = 100
 
-    			love.graphics.print(char.name, charX - 50, charY + 50)
+    			love.graphics.print(char.name, charX - 10, charY + 70)
 
     			if char.selected then
-    				love.graphics.rectangle("line", charX , charY , boxW, boxH)
+    				love.graphics.rectangle("line", charX - (boxW / 2) + (math.floor(char.sprite:getWidth() / 2)) , charY - (boxH / 2) + (math.floor(char.sprite:getHeight() / 2)) , boxW, boxH)
     			end
-
     		end
 
 
