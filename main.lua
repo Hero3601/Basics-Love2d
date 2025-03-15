@@ -10,8 +10,12 @@ local interval = 0.5
 local div_clr = 255
 
 function love.load()
+
+	screen_width , screen_height = love.graphics.getDimensions()
+
 	--[[vudu = require "libraries/vudu"
 	vudu:initialize()]]
+	box = require "libraries/box"
 	wf = require "libraries/windfield/windfield"
 	-- newWorld args : (gx (gravity on the x axis) , gy (gravity on y axis))
 	-- our game is top-down game so there will be no gravity in our game on the both axises 
@@ -28,6 +32,8 @@ function love.load()
 
 	game_map = maps[current_map_index]
 
+	local map_width = game_map.width * game_map.tilewidth
+	local map_height = game_map.height * game_map.tileheight
 
 	--[[
 	-- function for loading maps
@@ -54,8 +60,8 @@ function love.load()
 	player.rotation = nil
 	player.row = 4
 	player.col = 4
-	player.width = player.spritesheet:getWidth() / player.row
-	player.height = player.spritesheet:getHeight() / player.col
+	player.width = math.floor(player.spritesheet:getWidth() / player.row)
+	player.height = math.floor(player.spritesheet:getHeight() / player.col)
 	player.size = 6
 	player.gap = 20
 	player.collider = world:newBSGRectangleCollider(player.x , player.y , (player.width * player.size - player.gap) , (player.height * player.size - player.gap) , 14)
@@ -80,9 +86,44 @@ function love.load()
 	sounds.birdNoise = love.audio.newSource("audios/mus_birdnoise.ogg" , "stream")
 
 
-	sounds.birdNoise:setVolume(0.3)
+	sounds.birdNoise:setVolume(0.2)
 	sounds.birdNoise:setLooping(true)
 	sounds.birdNoise:play()
+
+	menu = {}
+	menu.image = love.graphics.newImage("images/menu-bg.png")
+	menu.scalex = screen_width / menu.image:getWidth()
+	menu.scaley = screen_height / menu.image:getHeight()
+	menu.opacity = 0
+	menu.opacityTarget = nil
+	menu.opacityAnimSpeed = 5
+
+	characters = {}
+
+	characters[1] = {
+		name = "Sam" ,
+		sprite = love.graphics.newImage("images/main-mini.png") ,
+		spritesheet = love.graphics.newImage("images/player-sheet.png") ,
+		opacity = 1 ,
+		opacityTarget = 1 ,
+		scale = 3 ,
+		scaleTarget = 3 ,
+		selected = true
+	}
+
+	characters[2] = {
+		name = "Sans" ,
+		sprite = love.graphics.newImage("images/sans-mini.png") ,
+		spritesheet = love.graphics.newImage("images/sans-movement.png") ,
+		opacity = 0.5 ,
+		opacityTarget = 0.5 ,
+		scale = 2 ,
+		scaleTarget = 2 ,
+		selected = false
+	}
+
+	selectedCharIndex = 1
+	charAnimSpeed = 5
 
 	particle_image = love.graphics.newImage("images/particle.png")
 
@@ -106,7 +147,8 @@ function love.load()
 	]]
 	player.grid = animte.newGrid(player.width , player.height , player.spritesheet:getWidth() , player.spritesheet:getHeight())
 	player.zoom = 1
-
+	player.targetZoom = nil
+	player.zoomSpeed = 8
 	player.animation = {}
 
 	--[[
@@ -213,8 +255,51 @@ end
 
 function love.update(dt)
 
+	if toggle_menu then
+		menu.opacityTarget = 1
+	else
+		menu.opacityTarget = 0
+	end
+
+	local opacity_diff = menu.opacityTarget - menu.opacity
+	menu.opacity = menu.opacity + opacity_diff * menu.opacityAnimSpeed * dt
+
+	for i , char in ipairs(characters) do
+		if char.selected then
+			char.opacityTarget = 1
+			char.scaleTarget = 3
+		else
+			char.opacityTarget = 0.5
+			char.scaleTarget = 2
+		end
+
+		local scale_diff = char.scaleTarget - char.scale
+		char.scale = char.scale + scale_diff * charAnimSpeed * dt
+
+		local opacity_diff = char.opacityTarget - char.opacity
+		char.opacity = char.opacity + opacity_diff * charAnimSpeed * dt
+	end
+
+	if zoomed then
+		player.targetZoom = 2    	
+	else
+		player.targetZoom = 1
+    end
+
+    local zoom_diff = player.targetZoom - player.zoom
+    player.zoom = player.zoom + zoom_diff * player.zoomSpeed * dt
+
+    cam:zoomTo(player.zoom)
+
+    screen_width = love.graphics.getWidth() / player.zoom
+    screen_height = love.graphics.getHeight() / player.zoom
+
 	emitterX = player.x
 	emitterY = player.y + player.height + 20
+
+	if emitYBoolean then
+		emitterY = player.y + player.height + 10
+	end
 
 	timer = timer + dt
 
@@ -566,10 +651,10 @@ function love.draw()
 		love.graphics.setBlendMode("add")  -- Additive blending for a glowing effect
         love.graphics.draw(particles)
         love.graphics.setBlendMode("alpha")  -- Reset blending mode
-
+        
 		love.graphics.setColor(1 , 1 , 1)
 		--[[love.graphics.rectangle(rect.m, rect.x, rect.y, rect.w, rect.h)]]
-		player.anim:draw(player.spritesheet , player.x , player.y , nil , player.size , nil , 6 , 9)
+		player.anim:draw(player.spritesheet , player.x , player.y , nil , player.size , nil , player.width / 2 , player.height / 2)
 	--[[
 	
 	cam:detach() - (everything below it attaches with the camera so it will move with you)
@@ -582,8 +667,36 @@ function love.draw()
 		-- the world:draw() draws every collider in the world and it seems like the hitbox in some games
 		-- world:draw()
 	cam:detach()
+    	if menu.opacity > 0 then
+    		love.graphics.setColor(1 , 1 , 1 , menu.opacity)
+    		love.graphics.draw(menu.image, 0, 0, nil, menu.scalex, menu.scaley)
+
+    		for i , char in ipairs(characters) do
+    			local gap = 200
+    			local charX = (love.graphics.getWidth() / 4) + i * gap
+    			local charY = love.graphics.getHeight() / 4
+
+    			love.graphics.setColor(1 , 1 , 1 , char.opacity * menu.opacity)
+
+    			love.graphics.draw(char.sprite , charX + (char.sprite:getWidth() / 2) , charY + (char.sprite:getHeight()) , nil , char.scale , char.scale)
+
+    			local boxW = 100
+    			local boxH = 100
+
+    			love.graphics.print(char.name, charX - 50, charY + 50)
+
+    			if char.selected then
+    				love.graphics.rectangle("line", charX , charY , boxW, boxH)
+    			end
+
+    		end
+
+
+    		love.graphics.setColor(1 , 1 , 1 , 1)
+    	end
 	-- love.graphics.rectangle(mode, x, y, width, height, rx, ry, segments)
 	love.graphics.draw(cursor , mouse_x , mouse_y , nil , mouse_mode.mods)
+
 
 	if debugging then
 
@@ -619,13 +732,58 @@ function love.draw()
         love.graphics.print("CPS : " .. cps , 190 , 100)
         love.graphics.setColor(1 , 1 , 1)
     end
+
 end
 
  	-- the below codes arent neccecary
 
  debuging = false
+ toggle_menu = false
+ zoomed = false
+ emitYBoolean = false
 
 function love.keypressed(key)
+
+	if key == "m" then
+		toggle_menu = not toggle_menu -- returns the opposite boolean (true)
+	end
+
+	if toggle_menu then
+		if key == "right" or key == "d" then
+			characters[selectedCharIndex].selected = false
+			selectedCharIndex = selectedCharIndex % #characters + 1
+			characters[selectedCharIndex].selected = true
+		elseif key == "left" or key == "a" then
+			characters[selectedCharIndex].selected = false
+			selectedCharIndex = selectedCharIndex - 1
+			if selectedCharIndex < 1 then
+				selectedCharIndex = #characters
+			end
+			characters[selectedCharIndex].selected = true
+		elseif key == "return" or key == "space" then
+			player.spritesheet = characters[selectedCharIndex].spritesheet
+			player.row = 4
+			player.col = 4
+			player.width = math.floor(player.spritesheet:getWidth() / player.row)
+			player.height = math.floor(player.spritesheet:getHeight() / player.col)
+			if selectedCharIndex == 1 then
+				player.size = 6
+			elseif selectedCharIndex == 2 then
+				player.size = 3.5
+			end
+
+			emitYBoolean = not emitYBoolean
+
+			player.grid = animte.newGrid(player.width , player.height , player.spritesheet:getWidth() , player.spritesheet:getHeight())
+
+			player.animation.down = animte.newAnimation(player.grid("1-4" , 1) , 0.2)
+			player.animation.left = animte.newAnimation(player.grid("1-4" , 2) , 0.2)
+			player.animation.right = animte.newAnimation(player.grid("1-4" , 3) , 0.2)
+			player.animation.up = animte.newAnimation(player.grid("1-4" , 4) , 0.2)
+
+			player.anim = player.animation.down
+		end
+	end
 
 	if key == "f5" then
         debugging = not debugging  -- Toggle debug mode
@@ -684,10 +842,7 @@ function love.keypressed(key)
 	end
 
 	if key == "z" then
-		player.zoom = 2
-	    cam:zoomTo(player.zoom)
-	    screen_width = love.graphics.getWidth() / player.zoom
-	    screen_height = love.graphics.getHeight() / player.zoom
+		zoomed = not zoomed
 	end
 
 	if key == "f11" then
@@ -719,10 +874,7 @@ function love.keyreleased(key)
 	end
 
 	if key == "z" then
-		player.zoom = 1
-	    cam:zoomTo(player.zoom)
-	    screen_width = love.graphics.getWidth() / player.zoom
-	    screen_height = love.graphics.getHeight() / player.zoom
+		zoomed = false
 	end
 
 end
